@@ -280,20 +280,6 @@ zabbix_export:
             - tag: component
               value: management
 
-        - uuid: '4b3d0c5614734dee89b957896cc5fb60'
-          name: 'Cluster name'
-          type: SNMP_AGENT
-          snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.4.1.0'
-          key: 'hpHttpMgClusterName'
-          delay: '1h'
-          history: 7d
-          trends: '0'
-          value_type: CHAR
-          description: 'Name of the cluster this system is a member of, or blank if not clustered (hpHttpMgClusterName).'
-          tags:
-            - tag: component
-              value: cluster
-
         - uuid: 'b7d29a1f2618414d82af9ed21102d0e8'
           name: 'Last device-specific event code'
           type: SNMP_AGENT
@@ -554,7 +540,7 @@ zabbix_export:
           item_prototypes:
             # --- Health (numeric for trending) ---
             - uuid: 'f0c07a30b4ae4778bfbfc01ba4f6136b'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health status'
+              name: '{#DEV_CAPTION}: Health status'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.3.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceHealth[{#SNMPINDEX}]'
@@ -568,12 +554,10 @@ zabbix_export:
               tags:
                 - tag: component
                   value: health
-                - tag: device-index
-                  value: '{#DEV_INDEX}'
               trigger_prototypes:
                 - uuid: 'b9c62c3c91b94de2b58be67ee5043d92'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=4'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health WARNING'
+                  name: '{#DEV_CAPTION}: Health WARNING'
                   priority: WARNING
                   description: 'Device {#DEV_CAPTION} health status is Warning - something needs attention.'
                   manual_close: 'YES'
@@ -582,7 +566,7 @@ zabbix_export:
                       value: availability
                 - uuid: '027510efdaad44a0bd174cb37c41884e'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=5'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health CRITICAL'
+                  name: '{#DEV_CAPTION}: Health CRITICAL'
                   priority: HIGH
                   description: 'Device {#DEV_CAPTION} health status is Critical - something has failed.'
                   manual_close: 'YES'
@@ -591,7 +575,7 @@ zabbix_export:
                       value: availability
                 - uuid: '17fe59737cae440cb3beae88798a4067'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=6'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health NON-RECOVERABLE'
+                  name: '{#DEV_CAPTION}: Health NON-RECOVERABLE'
                   priority: DISASTER
                   description: 'Device {#DEV_CAPTION} health status is Non-Recoverable.'
                   tags:
@@ -599,7 +583,7 @@ zabbix_export:
                       value: availability
                 - uuid: 'c7a330141b9b44d5a9e2fa8a5cbe76a2'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=1'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health UNKNOWN'
+                  name: '{#DEV_CAPTION}: Health UNKNOWN'
                   priority: INFO
                   description: 'Device {#DEV_CAPTION} health status is Unknown.'
                   manual_close: 'YES'
@@ -608,7 +592,7 @@ zabbix_export:
                       value: notice
                 - uuid: '117db7d836304267a352d134ee73acd1'
                   expression: 'change(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])<>0'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health status changed'
+                  name: '{#DEV_CAPTION}: Health status changed'
                   priority: INFO
                   description: 'Device {#DEV_CAPTION} health status has changed from its previous value.'
                   manual_close: 'YES'
@@ -618,7 +602,7 @@ zabbix_export:
 
             # --- Identity / Inventory ---
             - uuid: '5cdcb69d0ea04945ba0abb0b3eb1729a'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Global unique ID'
+              name: '{#DEV_CAPTION}: Global unique ID'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.2.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceGlobalUniqueID[{#SNMPINDEX}]'
@@ -632,7 +616,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '85db6d2eb3b547238758c67d793d63d8'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): System object ID'
+              name: '{#DEV_CAPTION}: System object ID'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.4.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceSysObjID[{#SNMPINDEX}]'
@@ -646,7 +630,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: 'f7b6d4a4a36140419dbbb8c2720a523f'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Management URL'
+              name: '{#DEV_CAPTION}: Management URL'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.5.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceManagementURL[{#SNMPINDEX}]'
@@ -660,7 +644,7 @@ zabbix_export:
                   value: management
 
             - uuid: '9fa79b79fa2a4debb30bce2b9ed5993e'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Management URL label'
+              name: '{#DEV_CAPTION}: Management URL label'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.6.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceManagementURLLabel[{#SNMPINDEX}]'
@@ -674,7 +658,7 @@ zabbix_export:
                   value: management
 
             - uuid: 'c7ba9e70cb5f45ac8f2e28edce04d0d7'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Manufacturer'
+              name: '{#DEV_CAPTION}: Manufacturer'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.7.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceManufacturer[{#SNMPINDEX}]'
@@ -688,7 +672,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '1143ccaddf7b4bf9a7c9742dfe317f30'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Product name'
+              name: '{#DEV_CAPTION}: Product name'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.8.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceProductName[{#SNMPINDEX}]'
@@ -702,7 +686,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: 'bb421ac6e4d24145a14658ed5651a047'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Product caption'
+              name: '{#DEV_CAPTION}: Product caption'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.9.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceProductCaption[{#SNMPINDEX}]'
@@ -716,7 +700,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '1befafecc17149b1a80ed53be5261143'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Serial number'
+              name: '{#DEV_CAPTION}: Serial number'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.10.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceSerialNumber[{#SNMPINDEX}]'
@@ -731,7 +715,7 @@ zabbix_export:
               trigger_prototypes:
                 - uuid: 'fc9302dd9043432ea02a3cb374b915c0'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}],#1)<>last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}],#2) and length(last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}]))>0'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Serial number changed'
+                  name: '{#DEV_CAPTION}: Serial number changed'
                   priority: INFO
                   description: 'Device serial number changed - possible hardware replacement.'
                   manual_close: 'YES'
@@ -740,7 +724,7 @@ zabbix_export:
                       value: notice
 
             - uuid: 'f95a677274e64857889ca01589a8ab8e'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Firmware version'
+              name: '{#DEV_CAPTION}: Firmware version'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.11.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceVersion[{#SNMPINDEX}]'
@@ -755,7 +739,7 @@ zabbix_export:
               trigger_prototypes:
                 - uuid: '93addc904370423ea3eb4b48f499ead3'
                   expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}],#1)<>last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}],#2) and length(last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}]))>0'
-                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Firmware version changed'
+                  name: '{#DEV_CAPTION}: Firmware version changed'
                   priority: INFO
                   description: 'Firmware version has changed. Verify the update was intentional.'
                   manual_close: 'YES'
@@ -764,7 +748,7 @@ zabbix_export:
                       value: notice
 
             - uuid: '9e67dee724834aa28096d0b02343df6f'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Hardware version'
+              name: '{#DEV_CAPTION}: Hardware version'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.12.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceHWVersion[{#SNMPINDEX}]'
@@ -778,7 +762,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '4dfa325ccc114c08a6bef7104ed0b032'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): ROM version'
+              name: '{#DEV_CAPTION}: ROM version'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.13.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceROMVersion[{#SNMPINDEX}]'
@@ -793,7 +777,7 @@ zabbix_export:
 
             # --- Asset / Contact ---
             - uuid: '362cdd60277941d181237b964b55d8ef'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Asset number'
+              name: '{#DEV_CAPTION}: Asset number'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.14.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceAssetNumber[{#SNMPINDEX}]'
@@ -807,7 +791,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: 'dd62b853430343f290a300a6720c93b5'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact person'
+              name: '{#DEV_CAPTION}: Contact person'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.15.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceContactPerson[{#SNMPINDEX}]'
@@ -821,7 +805,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '5bbc579586b34ca595160b7ef0914e75'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact phone'
+              name: '{#DEV_CAPTION}: Contact phone'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.16.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceContactPhone[{#SNMPINDEX}]'
@@ -835,7 +819,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '76544478318e46b3b4a08758e03a4bdb'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact email'
+              name: '{#DEV_CAPTION}: Contact email'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.17.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceContactEmail[{#SNMPINDEX}]'
@@ -849,7 +833,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '64abc5ff35604dcb81019d83676a87ea'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact pager'
+              name: '{#DEV_CAPTION}: Contact pager'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.18.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceContactPagerNumber[{#SNMPINDEX}]'
@@ -864,7 +848,7 @@ zabbix_export:
 
             # --- Location / Rack ---
             - uuid: 'd30bd6846dc345cb8eadf28c27520450'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Location'
+              name: '{#DEV_CAPTION}: Location'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.19.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceLocation[{#SNMPINDEX}]'
@@ -878,7 +862,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '4d170787a46c44adbfd3d91ad34f8eb1'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Rack ID'
+              name: '{#DEV_CAPTION}: Rack ID'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.20.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceRackId[{#SNMPINDEX}]'
@@ -892,7 +876,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '1bfb4f71c5da43699c40e31beb35b700'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Rack position'
+              name: '{#DEV_CAPTION}: Rack position'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.21.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceRackPosition[{#SNMPINDEX}]'
@@ -906,7 +890,7 @@ zabbix_export:
                   value: inventory
 
             - uuid: '8a7853b49b0242e5b603317c40fc145c'
-              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Relationship type'
+              name: '{#DEV_CAPTION}: Relationship type'
               type: SNMP_AGENT
               snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.22.{#SNMPINDEX}'
               key: 'hpHttpMgDeviceRelationshipType[{#SNMPINDEX}]'
