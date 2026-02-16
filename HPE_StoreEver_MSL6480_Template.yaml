@@ -1,0 +1,1222 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: '6dc6bc2d78564035b815a92f438d5adb'
+      name: 'Templates/Storage Devices'
+  templates:
+    - uuid: '171d82ebc04e44f287118b10621a6691'
+      template: 'HPE StoreEver MSL6480 by SNMP'
+      name: 'HPE StoreEver MSL6480 by SNMP'
+      description: |
+        Zabbix template for HPE StoreEver MSL6480 Tape Library.
+        Based on HP-httpManageable-MIB (HP enterprise OID 1.3.6.1.4.1.11.2.36.1).
+
+        Monitors:
+        - Device health, identity, and asset information
+        - Entity/component relationships and network info
+        - CVTL licensing status
+        - SNMP traps for health changes, device add/remove, shutdown
+        - Standard MIB-II system information
+        - ICMP availability
+
+        Requires: SNMPv2 or SNMPv3 access to the library management controller.
+      groups:
+        - name: 'Templates/Storage Devices'
+      tags:
+        - tag: class
+          value: storage
+        - tag: target
+          value: hpe
+        - tag: target
+          value: tape-library
+        - tag: target
+          value: msl6480
+
+      macros:
+        - macro: '{$SNMP_COMMUNITY}'
+          value: 'public'
+          description: 'SNMPv2 community string'
+        - macro: '{$SNMP_PORT}'
+          value: '161'
+          description: 'SNMP port'
+        - macro: '{$ICMP_LOSS_WARN}'
+          value: '20'
+          description: 'ICMP packet loss warning threshold (%)'
+        - macro: '{$ICMP_RESPONSE_TIME_WARN}'
+          value: '0.15'
+          description: 'ICMP response time warning threshold (seconds)'
+        - macro: '{$HEALTH_WARN_TIME}'
+          value: '5m'
+          description: 'Duration a non-OK health state must persist before alerting'
+
+      # ======================================================================
+      # ITEMS - ICMP Availability
+      # ======================================================================
+      items:
+        - uuid: '7a71b779226e43c79198900390968c48'
+          name: 'ICMP ping'
+          type: SIMPLE
+          key: 'icmpping'
+          delay: '1m'
+          history: 7d
+          valuemap:
+            name: 'Service state'
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 'e90380a150ba4a00aacfa5d7b438d923'
+              expression: 'max(/HPE StoreEver MSL6480 by SNMP/icmpping,#3)=0'
+              name: 'Unavailable by ICMP ping'
+              priority: HIGH
+              description: 'Last three ICMP ping attempts failed. Device is unreachable.'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '420ac478373c46bea2e68c2a246ee749'
+          name: 'ICMP packet loss'
+          type: SIMPLE
+          key: 'icmppingloss'
+          delay: '1m'
+          history: 7d
+          value_type: FLOAT
+          units: '%'
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: 'd9f7811786834a06b046ab8647a19d94'
+              expression: 'min(/HPE StoreEver MSL6480 by SNMP/icmppingloss,5m)>{$ICMP_LOSS_WARN}'
+              name: 'High ICMP ping loss'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/HPE StoreEver MSL6480 by SNMP/icmpping,#3)=0'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '8dda9e01398e45439695b9da8350672b'
+          name: 'ICMP response time'
+          type: SIMPLE
+          key: 'icmppingsec'
+          delay: '1m'
+          history: 7d
+          value_type: FLOAT
+          units: s
+          tags:
+            - tag: component
+              value: health
+            - tag: component
+              value: network
+          triggers:
+            - uuid: '46bcc962758b4cb9800ef4622d619383'
+              expression: 'avg(/HPE StoreEver MSL6480 by SNMP/icmppingsec,5m)>{$ICMP_RESPONSE_TIME_WARN}'
+              name: 'High ICMP ping response time'
+              priority: WARNING
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/HPE StoreEver MSL6480 by SNMP/icmpping,#3)=0'
+              tags:
+                - tag: scope
+                  value: performance
+
+        # ======================================================================
+        # ITEMS - MIB-II System Group
+        # ======================================================================
+        - uuid: '0223ef04489a4f019dba8804c0ef6d65'
+          name: 'System description'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.1.0'
+          key: 'system.descr'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'MIB-II sysDescr. Full textual description of the entity.'
+          inventory_link: HARDWARE
+          tags:
+            - tag: component
+              value: system
+
+        - uuid: '60d42e444d8a4cf6a2d822f57d6fa97d'
+          name: 'System object ID'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.2.0'
+          key: 'system.objectid'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'MIB-II sysObjectID.'
+          tags:
+            - tag: component
+              value: system
+
+        - uuid: 'ccdf724c67604cc98a5abb0ea3e34e9a'
+          name: 'System uptime'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.3.0'
+          key: 'system.uptime'
+          delay: '1m'
+          history: 7d
+          units: uptime
+          description: 'MIB-II sysUpTime. Time since the network management agent was last re-initialized.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: system
+          triggers:
+            - uuid: 'b2c7062233e14cc0be8ee69894ed7f26'
+              expression: 'last(/HPE StoreEver MSL6480 by SNMP/system.uptime)<600'
+              name: 'Device has been restarted'
+              priority: WARNING
+              description: 'Uptime is less than 10 minutes. The device was recently restarted.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: notice
+
+        - uuid: '2942ec6bef664498a63cd57e45c33c0b'
+          name: 'System contact'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.4.0'
+          key: 'system.contact'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'MIB-II sysContact.'
+          inventory_link: CONTACT
+          tags:
+            - tag: component
+              value: system
+
+        - uuid: '282fa69df27d46ecbdabdd8f06f70767'
+          name: 'System name'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.5.0'
+          key: 'system.name'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'MIB-II sysName.'
+          inventory_link: NAME
+          tags:
+            - tag: component
+              value: system
+          triggers:
+            - uuid: '550e0322af09499db0695470875b43b4'
+              expression: 'last(/HPE StoreEver MSL6480 by SNMP/system.name,#1)<>last(/HPE StoreEver MSL6480 by SNMP/system.name,#2) and length(last(/HPE StoreEver MSL6480 by SNMP/system.name))>0'
+              name: 'System name has changed'
+              priority: INFO
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: notice
+
+        - uuid: '4583ce36680741eab95b5b8a20c39701'
+          name: 'System location'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.6.0'
+          key: 'system.location'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'MIB-II sysLocation.'
+          inventory_link: LOCATION
+          tags:
+            - tag: component
+              value: system
+
+        - uuid: '57965381162148d3850d307aaec3ac50'
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          delay: '1m'
+          history: 7d
+          valuemap:
+            name: 'SNMP agent availability'
+          tags:
+            - tag: component
+              value: health
+          triggers:
+            - uuid: '407d4638ed3d47fdb9184047731bbb49'
+              expression: 'max(/HPE StoreEver MSL6480 by SNMP/zabbix[host,snmp,available],{$HEALTH_WARN_TIME})=0'
+              name: 'No SNMP data collection'
+              priority: WARNING
+              description: 'SNMP is not available for polling. Check device connectivity and SNMP configuration.'
+              dependencies:
+                - name: 'Unavailable by ICMP ping'
+                  expression: 'max(/HPE StoreEver MSL6480 by SNMP/icmpping,#3)=0'
+              tags:
+                - tag: scope
+                  value: availability
+
+        # ======================================================================
+        # ITEMS - HP httpMg Scalars
+        # ======================================================================
+        - uuid: '01f8f4fda57e4f198e2ac4999b420a8a'
+          name: 'Default management URL'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.1.1.0'
+          key: 'hpHttpMgDefaultURL'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'URL for the default management page of this device (hpHttpMgDefaultURL).'
+          tags:
+            - tag: component
+              value: management
+
+        - uuid: '4b3d0c5614734dee89b957896cc5fb60'
+          name: 'Cluster name'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.4.1.0'
+          key: 'hpHttpMgClusterName'
+          delay: '1h'
+          history: 7d
+          trends: '0'
+          value_type: CHAR
+          description: 'Name of the cluster this system is a member of, or blank if not clustered (hpHttpMgClusterName).'
+          tags:
+            - tag: component
+              value: cluster
+
+        - uuid: 'b7d29a1f2618414d82af9ed21102d0e8'
+          name: 'Last device-specific event code'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.11.2.36.1.0.10.0'
+          key: 'hpHttpMgDeviceSpecificEventCode'
+          delay: '5m'
+          history: 30d
+          trends: '0'
+          value_type: CHAR
+          description: 'Device specific event error code sent with traps (hpHttpMgDeviceSpecificEventCode).'
+          tags:
+            - tag: component
+              value: events
+
+        - uuid: '0c963a8bd02e437fb16a3400e9690b32'
+          name: 'Last device-specific FRU'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.11.2.36.1.0.11.0'
+          key: 'hpHttpMgDeviceSpecificFRU'
+          delay: '5m'
+          history: 30d
+          trends: '0'
+          value_type: CHAR
+          description: 'Device specific Field Replaceable Unit identifier sent with traps (hpHttpMgDeviceSpecificFRU).'
+          tags:
+            - tag: component
+              value: events
+
+        # ======================================================================
+        # ITEMS - SNMP Traps
+        # ======================================================================
+        - uuid: '8c458c052a8048e29994a631fd349941'
+          name: 'SNMP traps (fallback)'
+          type: SNMP_TRAP
+          key: 'snmptrap.fallback'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'Catch-all item for unmatched SNMP traps.'
+          tags:
+            - tag: component
+              value: traps
+
+        - uuid: 'a667a5425bad4c33a017060d74fe43b7'
+          name: 'Trap: Health status changed (legacy)'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.1($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgHealthTrap - Sent whenever hpHttpMgHealth changes state.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+
+        - uuid: 'ca6a3cceabb14104bedf954f2aec4d70'
+          name: 'Trap: Agent shutdown'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.2($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgShutdown - Sent when the SNMP agent is about to shut down.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+          triggers:
+            - uuid: '6f594ba3a0714b15bbcfae5079f45c5d'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.2($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device agent shutdown trap received'
+              priority: HIGH
+              description: 'The SNMP agent on the MSL6480 reported it is shutting down.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: 'cb21f603f32441bbb5bad954faef07b5'
+          name: 'Trap: Health changed to Unknown'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.3($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgUnknownHealthTrap - Health has changed to unknown.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+          triggers:
+            - uuid: '839574dbda364a5f9d8c95c96b3a9b58'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.3($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device health changed to UNKNOWN (trap)'
+              priority: WARNING
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '15a0f0c5e27542aa9eb3610a7dab1a4e'
+          name: 'Trap: Health changed to OK'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.4($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgOKHealthTrap - Health has changed to OK.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+
+        - uuid: '8e51ef9df8c644a7906e1f1e6ba7695c'
+          name: 'Trap: Health changed to Warning'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.5($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgWarningHealthTrap - Health has changed to warning.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+          triggers:
+            - uuid: '4995ad9594ae45a9a2eb3eecf901716c'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.5($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device health changed to WARNING (trap)'
+              priority: WARNING
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '1010defa629e4482a0468bcfc6ba96c6'
+          name: 'Trap: Health changed to Critical'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.6($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgCriticalHealthTrap - Health has changed to critical.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+          triggers:
+            - uuid: 'f86c61f74ac04fb7b0cdb505e2880bf5'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.6($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device health changed to CRITICAL (trap)'
+              priority: HIGH
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '5197f459258242eda1e35e13d211ff52'
+          name: 'Trap: Health changed to Non-Recoverable'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.7($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgNonRecoverableHealthTrap - Health has changed to non-recoverable.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: health
+          triggers:
+            - uuid: 'dd34199a05c04720b393dfe66a0bf800'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.7($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device health changed to NON-RECOVERABLE (trap)'
+              priority: DISASTER
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: '4b54d650a4a5415c8316b9299724bbb5'
+          name: 'Trap: Device added'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.8($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgDeviceAddedTrap - A device was added to the library.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: inventory
+          triggers:
+            - uuid: 'bad73049c2994b9092995571d445fe88'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.8($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device added to library (trap)'
+              priority: INFO
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: notice
+
+        - uuid: '95f3cf110085408baee50cc1f5a32df4'
+          name: 'Trap: Device removed'
+          type: SNMP_TRAP
+          key: 'snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.9($|[^0-9])"]'
+          delay: '0'
+          history: 30d
+          trends: '0'
+          value_type: LOG
+          description: 'hpHttpMgDeviceRemovedTrap - A device was removed from the library.'
+          tags:
+            - tag: component
+              value: traps
+            - tag: component
+              value: inventory
+          triggers:
+            - uuid: '22d2272b5b28436b9fb782363d2f9c81'
+              expression: 'find(/HPE StoreEver MSL6480 by SNMP/snmptrap["\\.1\\.3\\.6\\.1\\.4\\.1\\.11\\.2\\.36\\.1\\.0\\.9($|[^0-9])"],,"regexp",".")=1'
+              name: 'Device removed from library (trap)'
+              priority: WARNING
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: notice
+
+      # ======================================================================
+      # DISCOVERY RULES
+      # ======================================================================
+      discovery_rules:
+        # ------------------------------------------------------------------
+        # Discovery: Device Table
+        # ------------------------------------------------------------------
+        - uuid: '7db853f7da4545ddb64b98323c8cb7f4'
+          name: 'Device discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#DEV_INDEX},1.3.6.1.4.1.11.2.36.1.1.5.1.1.1,{#DEV_NAME},1.3.6.1.4.1.11.2.36.1.1.5.1.1.8,{#DEV_CAPTION},1.3.6.1.4.1.11.2.36.1.1.5.1.1.9]'
+          key: 'hpHttpMgDevice.discovery'
+          delay: '1h'
+          description: 'Discovers all devices (modules/components) in the hpHttpMgDeviceTable.'
+          item_prototypes:
+            # --- Health (numeric for trending) ---
+            - uuid: 'f0c07a30b4ae4778bfbfc01ba4f6136b'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.3.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceHealth[{#SNMPINDEX}]'
+              delay: '1m'
+              history: 90d
+              description: |
+                Overall health of the device (hpHttpMgDeviceHealth).
+                1=unknown, 2=unused, 3=ok, 4=warning, 5=critical, 6=nonrecoverable
+              valuemap:
+                name: 'HPE device health'
+              tags:
+                - tag: component
+                  value: health
+                - tag: device-index
+                  value: '{#DEV_INDEX}'
+              trigger_prototypes:
+                - uuid: 'b9c62c3c91b94de2b58be67ee5043d92'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=4'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health WARNING'
+                  priority: WARNING
+                  description: 'Device {#DEV_CAPTION} health status is Warning - something needs attention.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: '027510efdaad44a0bd174cb37c41884e'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=5'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health CRITICAL'
+                  priority: HIGH
+                  description: 'Device {#DEV_CAPTION} health status is Critical - something has failed.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: '17fe59737cae440cb3beae88798a4067'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=6'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health NON-RECOVERABLE'
+                  priority: DISASTER
+                  description: 'Device {#DEV_CAPTION} health status is Non-Recoverable.'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: 'c7a330141b9b44d5a9e2fa8a5cbe76a2'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])=1'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health UNKNOWN'
+                  priority: INFO
+                  description: 'Device {#DEV_CAPTION} health status is Unknown.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: notice
+                - uuid: '117db7d836304267a352d134ee73acd1'
+                  expression: 'change(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceHealth[{#SNMPINDEX}])<>0'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Health status changed'
+                  priority: INFO
+                  description: 'Device {#DEV_CAPTION} health status has changed from its previous value.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: notice
+
+            # --- Identity / Inventory ---
+            - uuid: '5cdcb69d0ea04945ba0abb0b3eb1729a'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Global unique ID'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.2.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceGlobalUniqueID[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Globally unique identifier for this device (hpHttpMgDeviceGlobalUniqueID).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '85db6d2eb3b547238758c67d793d63d8'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): System object ID'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.4.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceSysObjID[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'System Object ID for this device entity (hpHttpMgDeviceSysObjID).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: 'f7b6d4a4a36140419dbbb8c2720a523f'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Management URL'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.5.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceManagementURL[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'URL for the management interface of this device (hpHttpMgDeviceManagementURL).'
+              tags:
+                - tag: component
+                  value: management
+
+            - uuid: '9fa79b79fa2a4debb30bce2b9ed5993e'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Management URL label'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.6.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceManagementURLLabel[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Label for the management URL hyperlink (hpHttpMgDeviceManagementURLLabel).'
+              tags:
+                - tag: component
+                  value: management
+
+            - uuid: 'c7ba9e70cb5f45ac8f2e28edce04d0d7'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Manufacturer'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.7.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceManufacturer[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Manufacturer name (hpHttpMgDeviceManufacturer).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '1143ccaddf7b4bf9a7c9742dfe317f30'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Product name'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.8.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceProductName[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Product number/name (hpHttpMgDeviceProductName).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: 'bb421ac6e4d24145a14658ed5651a047'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Product caption'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.9.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceProductCaption[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Product descriptive caption (hpHttpMgDeviceProductCaption).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '1befafecc17149b1a80ed53be5261143'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Serial number'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.10.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceSerialNumber[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Serial number (hpHttpMgDeviceSerialNumber).'
+              tags:
+                - tag: component
+                  value: inventory
+              trigger_prototypes:
+                - uuid: 'fc9302dd9043432ea02a3cb374b915c0'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}],#1)<>last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}],#2) and length(last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceSerialNumber[{#SNMPINDEX}]))>0'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Serial number changed'
+                  priority: INFO
+                  description: 'Device serial number changed - possible hardware replacement.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: notice
+
+            - uuid: 'f95a677274e64857889ca01589a8ab8e'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Firmware version'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.11.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceVersion[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 30d
+              trends: '0'
+              value_type: CHAR
+              description: 'Software/firmware version number (hpHttpMgDeviceVersion).'
+              tags:
+                - tag: component
+                  value: inventory
+              trigger_prototypes:
+                - uuid: '93addc904370423ea3eb4b48f499ead3'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}],#1)<>last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}],#2) and length(last(/HPE StoreEver MSL6480 by SNMP/hpHttpMgDeviceVersion[{#SNMPINDEX}]))>0'
+                  name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Firmware version changed'
+                  priority: INFO
+                  description: 'Firmware version has changed. Verify the update was intentional.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: notice
+
+            - uuid: '9e67dee724834aa28096d0b02343df6f'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Hardware version'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.12.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceHWVersion[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Hardware version number (hpHttpMgDeviceHWVersion).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '4dfa325ccc114c08a6bef7104ed0b032'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): ROM version'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.13.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceROMVersion[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'ROM version number (hpHttpMgDeviceROMVersion).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            # --- Asset / Contact ---
+            - uuid: '362cdd60277941d181237b964b55d8ef'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Asset number'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.14.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceAssetNumber[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Asset number (hpHttpMgDeviceAssetNumber).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: 'dd62b853430343f290a300a6720c93b5'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact person'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.15.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceContactPerson[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Contact person name (hpHttpMgDeviceContactPerson).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '5bbc579586b34ca595160b7ef0914e75'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact phone'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.16.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceContactPhone[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Contact phone number (hpHttpMgDeviceContactPhone).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '76544478318e46b3b4a08758e03a4bdb'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact email'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.17.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceContactEmail[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Contact email address (hpHttpMgDeviceContactEmail).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '64abc5ff35604dcb81019d83676a87ea'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Contact pager'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.18.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceContactPagerNumber[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Contact pager number (hpHttpMgDeviceContactPagerNumber).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            # --- Location / Rack ---
+            - uuid: 'd30bd6846dc345cb8eadf28c27520450'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Location'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.19.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceLocation[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Device location (hpHttpMgDeviceLocation).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '4d170787a46c44adbfd3d91ad34f8eb1'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Rack ID'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.20.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceRackId[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Rack identifier assigned by administrator (hpHttpMgDeviceRackId).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '1bfb4f71c5da43699c40e31beb35b700'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Rack position'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.21.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceRackPosition[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Position in rack (hpHttpMgDeviceRackPosition).'
+              tags:
+                - tag: component
+                  value: inventory
+
+            - uuid: '8a7853b49b0242e5b603317c40fc145c'
+              name: 'Device [{#DEV_INDEX}] ({#DEV_CAPTION}): Relationship type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.5.1.1.22.{#SNMPINDEX}'
+              key: 'hpHttpMgDeviceRelationshipType[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              description: 'Relationship of this device to the SNMP agent. 1=host, 2=other (hpHttpMgDeviceRelationshipType).'
+              valuemap:
+                name: 'HPE device relationship type'
+              tags:
+                - tag: component
+                  value: inventory
+
+        # ------------------------------------------------------------------
+        # Discovery: Entity Net Info Table
+        # ------------------------------------------------------------------
+        - uuid: '7d7e15e8855e4dbfa3372876cb83ddcc'
+          name: 'Entity network info discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#ENT_INDEX},1.3.6.1.4.1.11.2.36.1.1.3.1.1.1,{#ENT_UNIQUEID},1.3.6.1.4.1.11.2.36.1.1.3.1.1.4,{#ENT_URLLABEL},1.3.6.1.4.1.11.2.36.1.1.3.1.1.6]'
+          key: 'hpHttpMgEntityNetInfo.discovery'
+          delay: '1h'
+          description: 'Discovers entity relationships in hpHttpMgEntityNetInfoTable (sub-components, attached entities, cluster nodes).'
+          item_prototypes:
+            - uuid: '4d837038cc094fadb00e26ebc86ea8c9'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): System object ID'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.2.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoSysObjID[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'System Object ID of this entity (hpHttpMgEntityNetInfoSysObjID).'
+              tags:
+                - tag: component
+                  value: entity
+
+            - uuid: '059a8752e5c741ddb8be4537a263b886'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): Relationship type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.3.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoRelationshipType[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              description: |
+                Relationship type of this entity.
+                0=self, 1=containedEntity, 2=containingEntity, 3=externallyAttached, 4=indirectlyAttached, 5=clusterNode
+              valuemap:
+                name: 'HPE entity relationship type'
+              tags:
+                - tag: component
+                  value: entity
+
+            - uuid: 'f8729b8bb1de4672a69da6891a5ad63f'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): Unique ID'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.4.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoUniqueID[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Globally unique ID for this entity (hpHttpMgEntityNetInfoUniqueID).'
+              tags:
+                - tag: component
+                  value: entity
+
+            - uuid: '85fec2f03d2643939905b0761057a66e'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): URL'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.5.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoURL[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Home page URL of this entity (hpHttpMgEntityNetInfoURL).'
+              tags:
+                - tag: component
+                  value: entity
+
+            - uuid: '97d602451b1747a7bb39446fdf5e5fe8'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): URL label'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.6.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoURLLabel[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Label for the URL hyperlink (hpHttpMgEntityNetInfoURLLabel).'
+              tags:
+                - tag: component
+                  value: entity
+
+            - uuid: 'c3ffc1fcb2c741ffb8e599b2a3e04926'
+              name: 'Entity [{#ENT_INDEX}] ({#ENT_URLLABEL}): IP address'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.3.1.1.7.{#SNMPINDEX}'
+              key: 'hpHttpMgEntityNetInfoIPAddress[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'IP address of this entity (hpHttpMgEntityNetInfoIPAddress).'
+              tags:
+                - tag: component
+                  value: entity
+
+        # ------------------------------------------------------------------
+        # Discovery: License Table
+        # ------------------------------------------------------------------
+        - uuid: '505ea0ad2bf64999b0ae0ba48f611448'
+          name: 'License discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#LIC_INDEX},1.3.6.1.4.1.11.2.36.1.1.6.1.1.1,{#LIC_NAME},1.3.6.1.4.1.11.2.36.1.1.6.1.1.8]'
+          key: 'hpHttpMgDeviceLicense.discovery'
+          delay: '6h'
+          description: 'Discovers CVTL and other licenses in hpHttpMgDeviceLicenseTable.'
+          item_prototypes:
+            - uuid: 'bf6e49e3e28f46c59bc97e24683f46ed'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Status'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.2.{#SNMPINDEX}'
+              key: 'licenseStatus[{#SNMPINDEX}]'
+              delay: '5m'
+              history: 30d
+              description: |
+                License row status (licenseStatus).
+                Standard RowStatus: 1=active, 2=notInService, 3=notReady, 4=createAndGo, 5=createAndWait, 6=destroy
+              valuemap:
+                name: 'SNMP RowStatus'
+              tags:
+                - tag: component
+                  value: license
+              trigger_prototypes:
+                - uuid: '620e54e3cd3945f7a94c9f47b6c1fd21'
+                  expression: 'last(/HPE StoreEver MSL6480 by SNMP/licenseStatus[{#SNMPINDEX}])<>1'
+                  name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Not active'
+                  priority: WARNING
+                  description: 'License {#LIC_NAME} row status is not active (1). Current status indicates the license may not be functional.'
+                  manual_close: 'YES'
+                  tags:
+                    - tag: scope
+                      value: availability
+
+            - uuid: '6ff723f8786345f5a017e8fc6c52d22f'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Key'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.3.{#SNMPINDEX}'
+              key: 'licenseKey[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'License key string (licenseKey).'
+              tags:
+                - tag: component
+                  value: license
+
+            - uuid: '91bd3c629ac84f41813e6c3056ac0433'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Duration type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.4.{#SNMPINDEX}'
+              key: 'licenseDuration[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 30d
+              description: 'License duration type. 1=permanent, 2=temporary (licenseDuration).'
+              valuemap:
+                name: 'HPE license duration'
+              tags:
+                - tag: component
+                  value: license
+
+            - uuid: '4841349e6bab421695c0158be7f05dec'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Expiration date'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.5.{#SNMPINDEX}'
+              key: 'licenseExpireDate[{#SNMPINDEX}]'
+              delay: '6h'
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'Date and time the license expires. Permanent licenses do not expire (licenseExpireDate).'
+              tags:
+                - tag: component
+                  value: license
+
+            - uuid: '5ba04ce11a8749e49471aaec7bcc3b86'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Apply date'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.6.{#SNMPINDEX}'
+              key: 'licenseApplyDate[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Date and time the license was applied (licenseApplyDate).'
+              tags:
+                - tag: component
+                  value: license
+
+            - uuid: 'aff0f25a55fe4e7e9c0007765378617e'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Quantity'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.7.{#SNMPINDEX}'
+              key: 'licenseQuantity[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 30d
+              description: 'Quantity of this license applied (licenseQuantity).'
+              tags:
+                - tag: component
+                  value: license
+
+            - uuid: 'ccdc375e42a94a02a80e475ba3d82889'
+              name: 'License [{#LIC_INDEX}] ({#LIC_NAME}): Name'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.11.2.36.1.1.6.1.1.8.{#SNMPINDEX}'
+              key: 'licenseName[{#SNMPINDEX}]'
+              delay: '1d'
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'Name of the license (licenseName).'
+              tags:
+                - tag: component
+                  value: license
+
+      # ======================================================================
+      # VALUE MAPS
+      # ======================================================================
+      valuemaps:
+        - uuid: 'c94c826edb074981bc188b4d886cbcce'
+          name: 'HPE device health'
+          mappings:
+            - value: '1'
+              newvalue: Unknown
+            - value: '2'
+              newvalue: Unused
+            - value: '3'
+              newvalue: OK
+            - value: '4'
+              newvalue: Warning
+            - value: '5'
+              newvalue: Critical
+            - value: '6'
+              newvalue: 'Non-Recoverable'
+
+        - uuid: '296447f3110d48a7898d8058a650e15e'
+          name: 'HPE entity relationship type'
+          mappings:
+            - value: '0'
+              newvalue: Self
+            - value: '1'
+              newvalue: 'Contained Entity'
+            - value: '2'
+              newvalue: 'Containing Entity'
+            - value: '3'
+              newvalue: 'Externally Attached'
+            - value: '4'
+              newvalue: 'Indirectly Attached'
+            - value: '5'
+              newvalue: 'Cluster Node'
+
+        - uuid: 'd63e8d8e236a4b82825d36410a89ad75'
+          name: 'HPE device relationship type'
+          mappings:
+            - value: '1'
+              newvalue: Host
+            - value: '2'
+              newvalue: Other
+
+        - uuid: 'b1db363922f841db897255b5f4496d88'
+          name: 'HPE license duration'
+          mappings:
+            - value: '1'
+              newvalue: Permanent
+            - value: '2'
+              newvalue: Temporary
+
+        - uuid: 'f16d5d35be0443e1acf1c5de83f6b833'
+          name: 'SNMP RowStatus'
+          mappings:
+            - value: '1'
+              newvalue: Active
+            - value: '2'
+              newvalue: 'Not In Service'
+            - value: '3'
+              newvalue: 'Not Ready'
+            - value: '4'
+              newvalue: 'Create And Go'
+            - value: '5'
+              newvalue: 'Create And Wait'
+            - value: '6'
+              newvalue: Destroy
+
+        - uuid: '05ee0ac784d446b98b0b926e8faea49d'
+          name: 'Service state'
+          mappings:
+            - value: '0'
+              newvalue: Down
+            - value: '1'
+              newvalue: Up
+
+        - uuid: '6b7322d1a0284070829eedf68d26ceca'
+          name: 'SNMP agent availability'
+          mappings:
+            - value: '0'
+              newvalue: 'Not available'
+            - value: '1'
+              newvalue: Available
+            - value: '2'
+              newvalue: Unknown
