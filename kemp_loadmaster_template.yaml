@@ -1,0 +1,1147 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: b3837ae2499e4c9ca1f549787209046e
+      name: Templates
+    - uuid: 4b88c47e59eb4227b173f1399f1db64f
+      name: Templates/Network devices
+
+  templates:
+    - uuid: eeebc441687a4546a91936ca28aa7b89
+      template: 'Kemp LoadMaster by SNMP'
+      name: 'Kemp LoadMaster by SNMP'
+      description: |
+        Comprehensive monitoring template for Kemp LoadMaster Load Balancers.
+        
+        Based on official Kemp MIB files:
+        - ONE4NET-MIB (enterprises.12196)
+        - IPVS-MIB (enterprises.12196.12) - Global statistics
+        - B100-MIB (enterprises.12196.13) - Virtual Services, Real Servers, HA
+        - CERTS-MIB (enterprises.12196.14) - SSL Certificates
+        
+        Features:
+        - System information and version
+        - HA cluster status monitoring
+        - Global traffic statistics (connections, packets, bytes)
+        - TPS metrics (Total and SSL)
+        - Virtual Service discovery with full metrics
+        - Real Server discovery with health status
+        - SSL Certificate discovery with expiry monitoring
+        - Performance metrics (request/response times, RTT)
+        
+        Setup:
+        1. Enable SNMP on your Kemp LoadMaster
+        2. Configure SNMPv2c or SNMPv3 community/credentials
+        3. Link this template to your host
+        
+        Tested with LoadMaster firmware 7.2.x
+        
+        Version: 1.0
+      groups:
+        - name: Templates
+        - name: Templates/Network devices
+
+      items:
+        # ============================================================================
+        # SYSTEM INFO - B100 MIB (1.3.6.1.4.1.12196.13.0)
+        # ============================================================================
+        - uuid: efca9bf722654dbba129524a398053e3
+          name: 'System: Version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.1.0
+          key: kemp.system.version
+          delay: 1h
+          history: 90d
+          trends: '0'
+          value_type: CHAR
+          description: 'The version of the netfilter modules (version)'
+          inventory_link: OS_FULL
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          tags:
+            - tag: component
+              value: inventory
+          triggers:
+            - uuid: 5bba18d4df594f28bcad43c771b22bea
+              expression: 'change(/Kemp LoadMaster by SNMP/kemp.system.version)<>0 and length(last(/Kemp LoadMaster by SNMP/kemp.system.version))>0'
+              recovery_mode: NONE
+              name: 'System version changed on {HOST.NAME}'
+              priority: INFO
+              description: 'LoadMaster software version has changed.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: notice
+
+        - uuid: 1204bc56318e4635b63e984ec9f19e8e
+          name: 'System: Patch Version'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.10.0
+          key: kemp.system.patch
+          delay: 1h
+          history: 90d
+          trends: '0'
+          value_type: CHAR
+          description: 'The installed software patch version (patchVersion)'
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1d
+          tags:
+            - tag: component
+              value: inventory
+
+        - uuid: 024aeed230d2442ca74b29a87163b9d1
+          name: 'System: Number of Virtual Services'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.2.0
+          key: kemp.system.numservices
+          delay: 5m
+          history: 7d
+          trends: 365d
+          description: 'The current number of Virtual Services (numServices)'
+          tags:
+            - tag: component
+              value: loadbalancer
+
+        - uuid: 32e9823de46846aa825569bbec7bd991
+          name: 'System: Hash Table Size'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.3.0
+          key: kemp.system.hashtablesize
+          delay: 1h
+          history: 7d
+          trends: 365d
+          description: 'The size of hash table for L4 connection contexts (hashTableSize)'
+          tags:
+            - tag: component
+              value: system
+
+        # ============================================================================
+        # TIMEOUT SETTINGS
+        # ============================================================================
+        - uuid: 00e36ae8060c45d98a0afc2db93cebb0
+          name: 'System: TCP Timeout'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.4.0
+          key: kemp.system.tcp.timeout
+          delay: 1h
+          history: 7d
+          trends: 365d
+          units: cs
+          description: 'The L4 TCP Timeout for established connections in centiseconds (tcpTimeOut)'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: network
+
+        - uuid: f11ad70a96804e3f8ef7375da078c44e
+          name: 'System: TCP FIN Timeout'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.5.0
+          key: kemp.system.tcp.fin.timeout
+          delay: 1h
+          history: 7d
+          trends: 365d
+          units: cs
+          description: 'The L4 TCP Timeout for connections in FIN wait state in centiseconds (tcpFinTimeOut)'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: network
+
+        - uuid: 9a378855429547a7831878654d271c0a
+          name: 'System: UDP Timeout'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.6.0
+          key: kemp.system.udp.timeout
+          delay: 1h
+          history: 7d
+          trends: 365d
+          units: cs
+          description: 'The L4 UDP Timeout in centiseconds (udpTimeOut)'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: component
+              value: network
+
+        # ============================================================================
+        # HA STATUS
+        # ============================================================================
+        - uuid: 988bae6e5e074548ad8262601b01a218
+          name: 'HA: State'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.9.0
+          key: kemp.ha.state
+          delay: 1m
+          history: 90d
+          trends: 365d
+          description: 'The HA status of the current machine: none(0), master(1), standby(2), passive(3) (haState)'
+          valuemap:
+            name: 'Kemp HA State'
+          preprocessing:
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+          tags:
+            - tag: component
+              value: ha
+          triggers:
+            - uuid: a48bfffd03994fdba9c71960b912e138
+              expression: 'change(/Kemp LoadMaster by SNMP/kemp.ha.state)<>0'
+              recovery_mode: NONE
+              name: 'HA: State changed on {HOST.NAME}'
+              opdata: 'Current state: {ITEM.LASTVALUE}'
+              priority: HIGH
+              description: 'HA state has changed - possible failover event.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: availability
+
+        - uuid: dff96bbf319140adb4705b2d911c8fa8
+          name: 'HA: Daemon State'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.7.0
+          key: kemp.ha.daemon.state
+          delay: 1m
+          history: 90d
+          trends: 365d
+          description: 'The state of daemon for synchronisation of L4 connection contexts: none(0), master(1), backup(2) (daemonState)'
+          valuemap:
+            name: 'Kemp Daemon State'
+          tags:
+            - tag: component
+              value: ha
+
+        - uuid: 23b32df4f5994a508c51c59ca5baf00d
+          name: 'HA: Multicast Interface'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.8.0
+          key: kemp.ha.mcast.interface
+          delay: 1h
+          history: 90d
+          trends: '0'
+          value_type: CHAR
+          description: 'The multicast interface used by L4 inter machine update daemon (mcastInterface)'
+          tags:
+            - tag: component
+              value: ha
+
+        # ============================================================================
+        # TPS METRICS
+        # ============================================================================
+        - uuid: 2146c64f9f4d4782aad70b4945c12482
+          name: 'Performance: Total TPS'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.11.0
+          key: kemp.tps.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: tps
+          description: 'The current total Transactions Per Second (totalTps)'
+          tags:
+            - tag: component
+              value: performance
+
+        - uuid: 53d47f965c574e458c44d46cbc365f73
+          name: 'Performance: SSL TPS'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.0.12.0
+          key: kemp.tps.ssl
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: tps
+          description: 'The current SSL Transactions Per Second (sslTps)'
+          tags:
+            - tag: component
+              value: performance
+
+        # ============================================================================
+        # GLOBAL TRAFFIC STATISTICS - IPVS MIB (1.3.6.1.4.1.12196.12)
+        # ============================================================================
+        - uuid: 96ce04bf930b49c2b05e6ded6b827620
+          name: 'Traffic: Total Connections'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.12.3.0
+          key: kemp.traffic.conns.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          description: 'The total number of connections handled for all Virtual Services (conns)'
+          preprocessing:
+            - type: CHANGE_PER_SECOND
+              parameters:
+                - ''
+          tags:
+            - tag: component
+              value: traffic
+
+        - uuid: b645ac77204d4294b838a2f594a78b23
+          name: 'Traffic: Total Incoming Packets'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.12.4.0
+          key: kemp.traffic.inpkts.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: pps
+          description: 'The total number of incoming packets for all Virtual Services (inPkts)'
+          preprocessing:
+            - type: CHANGE_PER_SECOND
+              parameters:
+                - ''
+          tags:
+            - tag: component
+              value: traffic
+
+        - uuid: 3b65594f941c41aba2e04e8d53d56286
+          name: 'Traffic: Total Outgoing Packets'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.12.5.0
+          key: kemp.traffic.outpkts.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: pps
+          description: 'The total number of outgoing packets for all Virtual Services (outPkts)'
+          preprocessing:
+            - type: CHANGE_PER_SECOND
+              parameters:
+                - ''
+          tags:
+            - tag: component
+              value: traffic
+
+        - uuid: be80b84f2d69470e95cf410d471163eb
+          name: 'Traffic: Total Incoming Bytes'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.12.6.0
+          key: kemp.traffic.inbytes.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: Bps
+          description: 'The total number of incoming bytes for all Virtual Services (inBytes)'
+          preprocessing:
+            - type: CHANGE_PER_SECOND
+              parameters:
+                - ''
+          tags:
+            - tag: component
+              value: traffic
+
+        - uuid: be0d5172fd6944f083aec70bfe92fae2
+          name: 'Traffic: Total Outgoing Bytes'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.12.7.0
+          key: kemp.traffic.outbytes.total
+          delay: 1m
+          history: 7d
+          trends: 365d
+          units: Bps
+          description: 'The total number of outgoing bytes for all Virtual Services (outBytes)'
+          preprocessing:
+            - type: CHANGE_PER_SECOND
+              parameters:
+                - ''
+          tags:
+            - tag: component
+              value: traffic
+
+        # ============================================================================
+        # ADAPTIVE SCHEDULING SETTINGS
+        # ============================================================================
+        - uuid: 6bda572a7a694ddeaf3db82fd3cb1a19
+          name: 'Adaptive: Interval'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.13.0
+          key: kemp.adaptive.interval
+          delay: 1h
+          history: 7d
+          trends: 365d
+          units: s
+          description: 'The adaptive scheduling interval in seconds (adaptiveInterval)'
+          tags:
+            - tag: component
+              value: loadbalancer
+
+        - uuid: 5abb216e165948419f3d4e9473348b74
+          name: 'Adaptive: Min Weight'
+          type: SNMP_AGENT
+          snmp_oid: 1.3.6.1.4.1.12196.13.16.0
+          key: kemp.adaptive.minweight
+          delay: 1h
+          history: 7d
+          trends: 365d
+          description: 'The adaptive scheduling minimum bound for adaptive weight (adaptiveMinWeight)'
+          tags:
+            - tag: component
+              value: loadbalancer
+
+        # ============================================================================
+        # SNMP AVAILABILITY
+        # ============================================================================
+        - uuid: 391c3a6905d84fc09722ccbcb034e838
+          name: 'SNMP agent availability'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          history: 7d
+          valuemap:
+            name: 'zabbix.host.available'
+          tags:
+            - tag: component
+              value: health
+          triggers:
+            - uuid: d62d72100f2b436e8068b5d851aa8f22
+              expression: 'max(/Kemp LoadMaster by SNMP/zabbix[host,snmp,available],{$SNMP.TIMEOUT})=0'
+              name: 'SNMP: No data collection on {HOST.NAME}'
+              opdata: 'Current state: {ITEM.LASTVALUE1}'
+              priority: WARNING
+              description: 'SNMP is not available. Check connectivity and SNMP settings.'
+              tags:
+                - tag: scope
+                  value: availability
+
+      # ============================================================================
+      # DISCOVERY RULES
+      # ============================================================================
+      discovery_rules:
+        # Virtual Service Discovery - B100 MIB
+        - uuid: 1437961af44247dfab0ff732e74d3dad
+          name: 'Virtual Service Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#VSIDX},1.3.6.1.4.1.12196.13.1.1.1,{#VSNAME},1.3.6.1.4.1.12196.13.1.1.13,{#VSIP},1.3.6.1.4.1.12196.13.1.1.2,{#VSPORT},1.3.6.1.4.1.12196.13.1.1.3]'
+          key: kemp.vs.discovery
+          delay: 10m
+          description: 'Discovers Virtual Services from b100VSTable'
+          item_prototypes:
+            - uuid: 8004005511c343f790243f48aeae86fc
+              name: 'VS [{#VSNAME}]: State'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.14.{#SNMPINDEX}'
+              key: 'kemp.vs.state[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'Virtual Service status: inService(1), outOfService(2), disabled(4), sorry(5), redirect(6), errormsg(7), securityDown(8)'
+              valuemap:
+                name: 'Kemp VS State'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+              trigger_prototypes:
+                - uuid: d3a28266e65c404692c783208971a67a
+                  expression: 'last(/Kemp LoadMaster by SNMP/kemp.vs.state[{#VSIDX}])=2'
+                  name: 'VS [{#VSNAME}]: Out of Service on {HOST.NAME}'
+                  opdata: 'Status: {ITEM.VALUE}'
+                  priority: HIGH
+                  description: 'Virtual Service {#VSNAME} ({#VSIP}:{#VSPORT}) is out of service.'
+                  tags:
+                    - tag: scope
+                      value: availability
+                - uuid: c61d44e828d347b48c1e42a4d7f77ddd
+                  expression: 'last(/Kemp LoadMaster by SNMP/kemp.vs.state[{#VSIDX}])=8'
+                  name: 'VS [{#VSNAME}]: Security Down on {HOST.NAME}'
+                  opdata: 'Status: {ITEM.VALUE}'
+                  priority: DISASTER
+                  description: 'Virtual Service {#VSNAME} ({#VSIP}:{#VSPORT}) is down due to security issue.'
+                  tags:
+                    - tag: scope
+                      value: security
+                - uuid: c031d6da644e4aedac086da11de89e42
+                  expression: 'last(/Kemp LoadMaster by SNMP/kemp.vs.state[{#VSIDX}])=5'
+                  name: 'VS [{#VSNAME}]: Sorry page active on {HOST.NAME}'
+                  opdata: 'Status: {ITEM.VALUE}'
+                  priority: AVERAGE
+                  description: 'Virtual Service {#VSNAME} is showing sorry page - no healthy backends.'
+                  tags:
+                    - tag: scope
+                      value: availability
+
+            - uuid: e4c1cc4420df4a419a4d4d1e11dc8f17
+              name: 'VS [{#VSNAME}]: Active Connections'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.21.{#SNMPINDEX}'
+              key: 'kemp.vs.activeconns[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'The number of active connections for this Virtual Service'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 88deb23d2e6a4bc18b75d66146559d42
+              name: 'VS [{#VSNAME}]: Total Connections'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.16.{#SNMPINDEX}'
+              key: 'kemp.vs.conns[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'The total number of connections for this Virtual Service'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 2a87e9492940408097807de8aded1538
+              name: 'VS [{#VSNAME}]: Incoming Bytes'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.19.{#SNMPINDEX}'
+              key: 'kemp.vs.inbytes[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: Bps
+              description: 'The total number of incoming bytes to this Virtual Service'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: d22b51e600e14020bfc5480cdbff45b0
+              name: 'VS [{#VSNAME}]: Outgoing Bytes'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.20.{#SNMPINDEX}'
+              key: 'kemp.vs.outbytes[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: Bps
+              description: 'The total number of outgoing bytes from this Virtual Service'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 457a46c3f845402ab06bd6dd4a88bbc4
+              name: 'VS [{#VSNAME}]: Incoming Packets'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.17.{#SNMPINDEX}'
+              key: 'kemp.vs.inpkts[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: pps
+              description: 'The total number of incoming packets to this Virtual Service'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 0aefd61142564c59a14d2c54327ea5ba
+              name: 'VS [{#VSNAME}]: Outgoing Packets'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.18.{#SNMPINDEX}'
+              key: 'kemp.vs.outpkts[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: pps
+              description: 'The total number of outgoing packets from this Virtual Service'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 87686d4e17d54ceba95d226afbb9b664
+              name: 'VS [{#VSNAME}]: Number of Real Servers'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.10.{#SNMPINDEX}'
+              key: 'kemp.vs.numdests[{#VSIDX}]'
+              delay: 5m
+              history: 7d
+              trends: 365d
+              description: 'The number of destinations (Real Servers) for this Virtual Service'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+              trigger_prototypes:
+                - uuid: c177176022354055815595778240ce01
+                  expression: 'last(/Kemp LoadMaster by SNMP/kemp.vs.numdests[{#VSIDX}])=0'
+                  name: 'VS [{#VSNAME}]: No Real Servers configured on {HOST.NAME}'
+                  priority: WARNING
+                  description: 'Virtual Service {#VSNAME} has no Real Servers configured.'
+                  tags:
+                    - tag: scope
+                      value: configuration
+
+            - uuid: 4066cbaef5a449838d92f2cfa78be829
+              name: 'VS [{#VSNAME}]: Scheduling Method'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.6.{#SNMPINDEX}'
+              key: 'kemp.vs.scheduler[{#VSIDX}]'
+              delay: 1h
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'The Virtual Service scheduling method (rr, wrr, lc, wlc, etc.)'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 20bc2c802bb54fda8828f386289204d7
+              name: 'VS [{#VSNAME}]: Protocol'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.5.{#SNMPINDEX}'
+              key: 'kemp.vs.protocol[{#VSIDX}]'
+              delay: 1h
+              history: 7d
+              trends: '0'
+              description: 'The Virtual Service protocol: tcp(6), udp(17)'
+              valuemap:
+                name: 'Kemp Protocol'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 6d3230cf47994634a36ff5ee10d79ba3
+              name: 'VS [{#VSNAME}]: Health Checker Type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.8.{#SNMPINDEX}'
+              key: 'kemp.vs.checker[{#VSIDX}]'
+              delay: 1h
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'The type of health checker associated with the Virtual Service'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 69ca54e455d042afae35421fd20b4b50
+              name: 'VS [{#VSNAME}]: Persistence Type'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.11.{#SNMPINDEX}'
+              key: 'kemp.vs.persistence[{#VSIDX}]'
+              delay: 1h
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'The type of persistence used with the Virtual Service'
+              tags:
+                - tag: component
+                  value: virtualservice
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            # Performance Metrics
+            - uuid: badcdb779c484fbba367779dbe9ff290
+              name: 'VS [{#VSNAME}]: Avg Response Time (Current)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.23.{#SNMPINDEX}'
+              key: 'kemp.vs.response.avg[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: ms
+              description: 'Response Current Average (ms)'
+              tags:
+                - tag: component
+                  value: performance
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 3d80b079f02a4facac8c3e6bf5136075
+              name: 'VS [{#VSNAME}]: Avg Request Time (Current)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.22.{#SNMPINDEX}'
+              key: 'kemp.vs.request.avg[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: ms
+              description: 'Request Current Average (ms)'
+              tags:
+                - tag: component
+                  value: performance
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+
+            - uuid: 12fd102a5b3549e88d01ebea953a9d4c
+              name: 'VS [{#VSNAME}]: Avg RTT (Current)'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.1.1.34.{#SNMPINDEX}'
+              key: 'kemp.vs.rtt.avg[{#VSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: ms
+              description: 'Round Trip Times Current Average (ms)'
+              tags:
+                - tag: component
+                  value: performance
+                - tag: virtualservice
+                  value: '{#VSNAME}'
+              trigger_prototypes:
+                - uuid: ef4088b8998b4cb59570b902e7c7bd9f
+                  expression: 'avg(/Kemp LoadMaster by SNMP/kemp.vs.rtt.avg[{#VSIDX}],5m)>{$VS.RTT.WARN}'
+                  name: 'VS [{#VSNAME}]: High RTT on {HOST.NAME}'
+                  opdata: 'Current RTT: {ITEM.LASTVALUE}ms'
+                  priority: WARNING
+                  description: 'Virtual Service {#VSNAME} has high round-trip time.'
+                  tags:
+                    - tag: scope
+                      value: performance
+
+          graph_prototypes:
+            - uuid: 4d862b1ccc5e4dbe86417a9df7eaef47
+              name: 'VS [{#VSNAME}]: Connections'
+              graph_items:
+                - color: 1A7C11
+                  item:
+                    host: 'Kemp LoadMaster by SNMP'
+                    key: 'kemp.vs.activeconns[{#VSIDX}]'
+                - sortorder: '1'
+                  color: 2774A4
+                  item:
+                    host: 'Kemp LoadMaster by SNMP'
+                    key: 'kemp.vs.conns[{#VSIDX}]'
+            - uuid: 6325e052975a42e185681503ad4f2f6c
+              name: 'VS [{#VSNAME}]: Traffic'
+              graph_items:
+                - color: 1A7C11
+                  item:
+                    host: 'Kemp LoadMaster by SNMP'
+                    key: 'kemp.vs.inbytes[{#VSIDX}]'
+                - sortorder: '1'
+                  color: F63100
+                  item:
+                    host: 'Kemp LoadMaster by SNMP'
+                    key: 'kemp.vs.outbytes[{#VSIDX}]'
+
+        # Real Server Discovery - B100 MIB
+        - uuid: c75780dc3ac5447582d4b7ddbf21393c
+          name: 'Real Server Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#RSIDX},1.3.6.1.4.1.12196.13.2.1.5,{#RSIP},1.3.6.1.4.1.12196.13.2.1.2,{#RSPORT},1.3.6.1.4.1.12196.13.2.1.3,{#RSVSIDX},1.3.6.1.4.1.12196.13.2.1.1]'
+          key: kemp.rs.discovery
+          delay: 10m
+          description: 'Discovers Real Servers from b100RSTable'
+          item_prototypes:
+            - uuid: 261f39b4bf7044bfa24e6c9bcaae9787
+              name: 'RS [{#RSIP}:{#RSPORT}]: State'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.8.{#SNMPINDEX}'
+              key: 'kemp.rs.state[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'Real Server status: inService(1), outOfService(2), disabled(4)'
+              valuemap:
+                name: 'Kemp RS State'
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+              trigger_prototypes:
+                - uuid: 67ffec84f3e44eb88987c59c99e1636e
+                  expression: 'last(/Kemp LoadMaster by SNMP/kemp.rs.state[{#RSIDX}])=2'
+                  name: 'RS [{#RSIP}:{#RSPORT}]: Out of Service on {HOST.NAME}'
+                  opdata: 'Status: {ITEM.VALUE}'
+                  priority: AVERAGE
+                  description: 'Real Server {#RSIP}:{#RSPORT} is out of service.'
+                  tags:
+                    - tag: scope
+                      value: availability
+
+            - uuid: 707c2ba633cb46d98c40a06e92269ecc
+              name: 'RS [{#RSIP}:{#RSPORT}]: Weight'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.7.{#SNMPINDEX}'
+              key: 'kemp.rs.weight[{#RSIDX}]'
+              delay: 5m
+              history: 7d
+              trends: 365d
+              description: 'The configured weight of the Real Server'
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: 9a71f9504f2b483a9dbe2e124831e96f
+              name: 'RS [{#RSIP}:{#RSPORT}]: Active Connections'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.17.{#SNMPINDEX}'
+              key: 'kemp.rs.activeconns[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'The number of active connections for this Real Server'
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: 0a1a2892a8b7496db10e93a4e63ba34e
+              name: 'RS [{#RSIP}:{#RSPORT}]: Total Connections'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.12.{#SNMPINDEX}'
+              key: 'kemp.rs.conns[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              description: 'The total number of connections for this Real Server'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: 59a18996d578437caf2d920f40b3b050
+              name: 'RS [{#RSIP}:{#RSPORT}]: Incoming Bytes'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.15.{#SNMPINDEX}'
+              key: 'kemp.rs.inbytes[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: Bps
+              description: 'The total number of incoming bytes to this Real Server'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: c9eda0638956437b9f04d9208988c025
+              name: 'RS [{#RSIP}:{#RSPORT}]: Outgoing Bytes'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.16.{#SNMPINDEX}'
+              key: 'kemp.rs.outbytes[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: Bps
+              description: 'The total number of outgoing bytes from this Real Server'
+              preprocessing:
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: 45dbb0bc29e244c7ba88fb4f413446e9
+              name: 'RS [{#RSIP}:{#RSPORT}]: Forwarding Method'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.6.{#SNMPINDEX}'
+              key: 'kemp.rs.fwdmethod[{#RSIDX}]'
+              delay: 1h
+              history: 7d
+              trends: '0'
+              value_type: CHAR
+              description: 'The forwarding method used for Real Server (NAT, DR, TUN)'
+              tags:
+                - tag: component
+                  value: realserver
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: ad4883987def46cf8e6b07916a58d413
+              name: 'RS [{#RSIP}:{#RSPORT}]: Avg Response Time'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.20.{#SNMPINDEX}'
+              key: 'kemp.rs.response.avg[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: ms
+              description: 'Response Current Average (ms)'
+              tags:
+                - tag: component
+                  value: performance
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+            - uuid: 42f396ab7990439397f34f4703dc8114
+              name: 'RS [{#RSIP}:{#RSPORT}]: Avg RTT'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.13.2.1.31.{#SNMPINDEX}'
+              key: 'kemp.rs.rtt.avg[{#RSIDX}]'
+              delay: 1m
+              history: 7d
+              trends: 365d
+              units: ms
+              description: 'Round Trip Times Current Average (ms)'
+              tags:
+                - tag: component
+                  value: performance
+                - tag: realserver
+                  value: '{#RSIP}:{#RSPORT}'
+
+        # SSL Certificate Discovery - CERTS MIB
+        - uuid: f0b124e99ffd4c609ce1b36ea3da0cda
+          name: 'SSL Certificate Discovery'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#CERTIDX},1.3.6.1.4.1.12196.14.1.1.1,{#CERTNAME},1.3.6.1.4.1.12196.14.1.1.2,{#CERTSUBJECT},1.3.6.1.4.1.12196.14.1.1.3]'
+          key: kemp.cert.discovery
+          delay: 1h
+          description: 'Discovers SSL certificates from certsTable'
+          item_prototypes:
+            - uuid: 2993d927df834a8294e91dd0777fe525
+              name: 'Cert [{#CERTNAME}]: Subject'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.14.1.1.3.{#SNMPINDEX}'
+              key: 'kemp.cert.subject[{#CERTIDX}]'
+              delay: 1d
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'The certificate subject name'
+              tags:
+                - tag: component
+                  value: certificate
+                - tag: certificate
+                  value: '{#CERTNAME}'
+
+            - uuid: 54db1bbb2b7a4934925554971c74152b
+              name: 'Cert [{#CERTNAME}]: Serial Number'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.14.1.1.4.{#SNMPINDEX}'
+              key: 'kemp.cert.serial[{#CERTIDX}]'
+              delay: 1d
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'The certificate serial number'
+              tags:
+                - tag: component
+                  value: certificate
+                - tag: certificate
+                  value: '{#CERTNAME}'
+
+            - uuid: 9e6d2f0d92f249a8afe3d39f4676395f
+              name: 'Cert [{#CERTNAME}]: Issuer'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.14.1.1.7.{#SNMPINDEX}'
+              key: 'kemp.cert.issuer[{#CERTIDX}]'
+              delay: 1d
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'The certificate issuer'
+              tags:
+                - tag: component
+                  value: certificate
+                - tag: certificate
+                  value: '{#CERTNAME}'
+
+            - uuid: 8a39315ea0a341088e458135382622b0
+              name: 'Cert [{#CERTNAME}]: Start Date'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.14.1.1.5.{#SNMPINDEX}'
+              key: 'kemp.cert.startdate[{#CERTIDX}]'
+              delay: 1d
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'The certificate start date'
+              tags:
+                - tag: component
+                  value: certificate
+                - tag: certificate
+                  value: '{#CERTNAME}'
+
+            - uuid: 6d5518788ef6478185e8a9707e78ce39
+              name: 'Cert [{#CERTNAME}]: End Date'
+              type: SNMP_AGENT
+              snmp_oid: '1.3.6.1.4.1.12196.14.1.1.6.{#SNMPINDEX}'
+              key: 'kemp.cert.enddate[{#CERTIDX}]'
+              delay: 1d
+              history: 90d
+              trends: '0'
+              value_type: CHAR
+              description: 'The certificate end date'
+              tags:
+                - tag: component
+                  value: certificate
+                - tag: certificate
+                  value: '{#CERTNAME}'
+
+      # ============================================================================
+      # MACROS
+      # ============================================================================
+      macros:
+        - macro: '{$SNMP.TIMEOUT}'
+          value: 5m
+          description: 'SNMP polling timeout'
+        - macro: '{$VS.RTT.WARN}'
+          value: '100'
+          description: 'Virtual Service RTT warning threshold in ms'
+        - macro: '{$VS.RTT.CRIT}'
+          value: '500'
+          description: 'Virtual Service RTT critical threshold in ms'
+
+      # ============================================================================
+      # VALUE MAPS
+      # ============================================================================
+      valuemaps:
+        - uuid: 44d6ede98bbe46f28b84ad24a703c7d4
+          name: 'Kemp HA State'
+          mappings:
+            - value: '0'
+              newvalue: none
+            - value: '1'
+              newvalue: master
+            - value: '2'
+              newvalue: standby
+            - value: '3'
+              newvalue: passive
+        - uuid: 2a2056a7c03f45a6b054a793a3e4d336
+          name: 'Kemp Daemon State'
+          mappings:
+            - value: '0'
+              newvalue: none
+            - value: '1'
+              newvalue: master
+            - value: '2'
+              newvalue: backup
+        - uuid: b04281a5d34e4052ab3aee1b3e97a60f
+          name: 'Kemp VS State'
+          mappings:
+            - value: '1'
+              newvalue: inService
+            - value: '2'
+              newvalue: outOfService
+            - value: '4'
+              newvalue: disabled
+            - value: '5'
+              newvalue: sorry
+            - value: '6'
+              newvalue: redirect
+            - value: '7'
+              newvalue: errormsg
+            - value: '8'
+              newvalue: securityDown
+        - uuid: 93dfea21967840b5b606774e8d43b223
+          name: 'Kemp RS State'
+          mappings:
+            - value: '1'
+              newvalue: inService
+            - value: '2'
+              newvalue: outOfService
+            - value: '4'
+              newvalue: disabled
+        - uuid: 2eba0b852537487ea5faa02c9da9b1c9
+          name: 'Kemp Protocol'
+          mappings:
+            - value: '6'
+              newvalue: TCP
+            - value: '17'
+              newvalue: UDP
+        - uuid: 5bfc10d33af6417ca234554224c4965c
+          name: 'zabbix.host.available'
+          mappings:
+            - value: '0'
+              newvalue: 'not available'
+            - value: '1'
+              newvalue: available
+            - value: '2'
+              newvalue: unknown
+
+  # ============================================================================
+  # GRAPHS
+  # ============================================================================
+  graphs:
+    - uuid: 57b69f5643d147d0823c252cac51f48b
+      name: 'Kemp: TPS Overview'
+      graph_items:
+        - color: 1A7C11
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.tps.total
+        - sortorder: '1'
+          color: F63100
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.tps.ssl
+    - uuid: daccf8ffb77248dba97f6c6b2d1f0113
+      name: 'Kemp: Global Traffic'
+      graph_items:
+        - color: 1A7C11
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.traffic.inbytes.total
+        - sortorder: '1'
+          color: F63100
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.traffic.outbytes.total
+    - uuid: 6bd5242184284e19ae72bfcbf4150e49
+      name: 'Kemp: Global Packets'
+      graph_items:
+        - color: 1A7C11
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.traffic.inpkts.total
+        - sortorder: '1'
+          color: F63100
+          item:
+            host: 'Kemp LoadMaster by SNMP'
+            key: kemp.traffic.outpkts.total
